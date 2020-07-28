@@ -1,0 +1,119 @@
+{% extends "layout/control.html" %}
+
+{% block title %}个人中心{% endblock %}
+
+{% block content %}
+<div class="layui-container">
+    <table id="waterfall" lay-filter="waterfall"></table>
+</div>
+{% endblock %}
+
+{% block script %}
+{% raw %}
+<script type="text/html" id="toolbar">
+    <div class="layui-inline">
+        <input type="text" id="title" placeholder="视频标题" autocomplete="off" class="layui-input"
+            style="height:26px;width:auto;margin-left:0px">
+    </div>
+    <a class="layui-btn layui-btn-xs" id="choose"><i class="layui-icon layui-icon-add-1"></i>选择</a>
+    <a class="layui-btn layui-btn-xs" id="upload"><i class="layui-icon layui-icon-upload-drag"></i>上传</a>
+</script>
+<script type="text/html" id="action">
+    <a class="layui-btn layui-btn-xs" lay-event="play">播放</a>
+    <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="remove">删除</a>
+</script>
+{% endraw %}
+<script>
+    layui.use(['table', 'util', 'layer', 'upload'], function () {
+        var $ = layui.jquery,
+            table = layui.table,
+            layer = layui.layer,
+            upload = layui.upload,
+            util = layui.util;
+
+        var wt = table.render({
+            elem: '#waterfall',
+            url: '{{ url_for("api.ep", Object="picbed-video", Action="waterfall")|safe }}',
+            method: 'post',
+            page: true,
+            skin: 'line',
+            toolbar: '#toolbar',
+            cols: [
+                [{
+                    field: 'sha',
+                    fixed: 'left',
+                    hide: true,
+                }, {
+                    field: 'filename',
+                    title: '文件名',
+                }, {
+                    field: 'title',
+                    title: '标题',
+                }, {
+                    field: 'ctime',
+                    title: '创建时间',
+                    width: 180,
+                    templet: function (d) {
+                        return util.toDateString(parseInt(d.ctime) * 1000);
+                    }
+                },
+                {
+                    fixed: 'right',
+                    width: 70,
+                    align: 'left',
+                    toolbar: '#action'
+                }
+            ]],
+        });
+
+        upload.render({
+            elem: '#choose',
+            url: '{{ url_for("api.ep", Object="picbed-video", Action="upload")|safe }}',
+            data: {
+                title: function () {
+                    return $('#title').val();
+                }
+            },
+            accept: 'video',
+            exts: 'mp4|ogg|webm',
+            auto: false,
+            bindAction: '#upload',
+            field: 'picbed',
+            size: 1024 * 10,
+            multiple: false,
+            drag: true,
+            done: function (res) {
+                console.log(res)
+                if (res.code === 0) {
+                    layer.msg("上传成功", {icon: 1});
+                    wt.reload();
+                } else {
+                    layer.msg(res.msg, {icon: 2});
+                }
+            },
+        });
+
+        table.on('tool(waterfall)', function (obj) {
+            var data = obj.data;
+            var layEvent = obj.event;
+            var tr = obj.tr;
+            if (layEvent === 'play') {
+                layer.open({
+                    type: 2,
+                    title: false,
+                    maxmin: true,
+                    shade: 0.1,
+                    closeBtn: false,
+                    shadeClose: true,
+                    content: data.src,
+                    success: function(layero, index){
+                        layero[0].querySelector(".layui-layer-setwin .layui-layer-min").remove();
+                    }
+                });
+            } else if (layEvent === 'remove') {
+                //
+            }
+        });
+    });
+</script>
+{% endblock %}
