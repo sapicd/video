@@ -1,6 +1,6 @@
 {% extends "layout/control.html" %}
 
-{% block title %}个人中心{% endblock %}
+{% block title %}我的视频{% endblock %}
 
 {% block content %}
 <div class="layui-container">
@@ -24,12 +24,47 @@
 </script>
 {% endraw %}
 <script>
-    layui.use(['table', 'util', 'layer', 'upload'], function () {
+    layui.use(['table', 'util', 'layer', 'upload', 'picbed'], function () {
         var $ = layui.jquery,
             table = layui.table,
             layer = layui.layer,
             upload = layui.upload,
+            picbed = layui.picbed,
             util = layui.util;
+
+        function render_upload() {
+            upload.render({
+                elem: "#choose",
+                url: '{{ url_for("api.ep", Object="picbed-video", Action="upload")|safe }}',
+                data: {
+                    title: function () {
+                        return $('#title').val();
+                    }
+                },
+                exts: 'mp4|ogg|ogv|webm|3gp',
+                accept: 'video',
+                acceptMime: 'video/mp4,video/ogg,video/webm,video/3gpp',
+                auto: false,
+                bindAction: "#upload",
+                field: 'picbed',
+                size: 1024 * 10,
+                multiple: false,
+                drag: true,
+                before: function(obj) {
+                    layer.load();
+                },
+                done: function (res) {
+                    layer.closeAll('loading');
+                    if (res.code === 0) {
+                        layer.msg("上传成功", {icon: 1, time: 1000}, function() {
+                            wt.reload();
+                        });
+                    } else {
+                        layer.msg(res.msg, {icon: 2});
+                    }
+                },
+            });
+        }
 
         var wt = table.render({
             elem: '#waterfall',
@@ -37,60 +72,47 @@
             method: 'post',
             page: true,
             skin: 'line',
+            size: 'sm',
             toolbar: '#toolbar',
             cols: [
                 [{
-                    field: 'sha',
-                    fixed: 'left',
-                    hide: true,
-                }, {
-                    field: 'filename',
-                    title: '文件名',
-                }, {
-                    field: 'title',
-                    title: '标题',
-                }, {
-                    field: 'ctime',
-                    title: '创建时间',
-                    width: 180,
-                    templet: function (d) {
-                        return util.toDateString(parseInt(d.ctime) * 1000);
+                        field: 'sha',
+                        fixed: 'left',
+                        hide: true,
+                    }, {
+                        field: 'filename',
+                        title: '文件名',
+                    }, {
+                        field: 'sender',
+                        title: '存储在',
+                        hide: true,
+                    }, {
+                        field: 'title',
+                        title: '标题',
+                    }, {
+                        field: 'ctime',
+                        title: '创建时间',
+                        width: 180,
+                        templet: function (d) {
+                            return util.toDateString(parseInt(d.ctime) * 1000);
+                        }
+                    },
+                    {
+                        fixed: 'right',
+                        width: 120,
+                        align: 'left',
+                        toolbar: '#action'
                     }
-                },
-                {
-                    fixed: 'right',
-                    width: 70,
-                    align: 'left',
-                    toolbar: '#action'
-                }
-            ]],
-        });
-
-        upload.render({
-            elem: '#choose',
-            url: '{{ url_for("api.ep", Object="picbed-video", Action="upload")|safe }}',
-            data: {
-                title: function () {
-                    return $('#title').val();
-                }
-            },
-            accept: 'video',
-            exts: 'mp4|ogg|webm',
-            auto: false,
-            bindAction: '#upload',
-            field: 'picbed',
-            size: 1024 * 10,
-            multiple: false,
-            drag: true,
-            done: function (res) {
-                console.log(res)
-                if (res.code === 0) {
-                    layer.msg("上传成功", {icon: 1});
-                    wt.reload();
-                } else {
-                    layer.msg(res.msg, {icon: 2});
-                }
-            },
+                ]
+            ],
+            defaultToolbar: [{
+                title: '提示',
+                layEvent: 'LAYTABLE_TIPS',
+                icon: 'layui-icon-tips',
+            }, 'filter', 'print', 'exports'],
+            done: function () {
+                render_upload();
+            }
         });
 
         table.on('tool(waterfall)', function (obj) {
@@ -105,13 +127,51 @@
                     shade: 0.1,
                     closeBtn: false,
                     shadeClose: true,
+                    scrollbar: false,
                     content: data.src,
-                    success: function(layero, index){
+                    success: function (layero, index) {
                         layero[0].querySelector(".layui-layer-setwin .layui-layer-min").remove();
+                        var body = layer.getChildFrame('body', index),
+                            v = body.find('video')[0];
+                        var vWidth = v.videoWidth,
+                            vHieght = v.videoHeight;
+                        if (vWidth > 800) {
+                            vWidth = vWidth / 2;
+                            vHieght = vHieght / 2;
+                        }
+                        var Height = document.documentElement.clientHeight;
+                            Width = document.documentElement.clientWidth;
+                        layer.style(index, {
+                            width: vWidth + 'px',
+                            height: vHieght + 'px',
+                            left: (Width - vWidth) / 2 + 'px',
+                            top: (Height - vHieght) / 2 + 'px',
+                            //top: 10
+                        });
                     }
                 });
             } else if (layEvent === 'remove') {
-                //
+                layer.confirm('确认删除此视频？', {
+                    icon: 3,
+                    title: false,
+                    shade: 0.1
+                }, function (index) {
+                    layer.close(index);
+                    picbed.ajax('{{ url_for("api.ep", Object="picbed-video", Action="remove")|safe }}', function (res) {
+                        layer.msg("已删除", {icon: 1});
+                        obj.del();
+                    }, {
+                        method: 'POST',
+                        data: {sha: data.sha}
+                    });
+                });
+            }
+        });
+
+        table.on('toolbar(waterfall)', function(obj){
+            var layEvent = obj.event;
+            if(layEvent === 'LAYTABLE_TIPS'){
+                layer.msg('各浏览器播放视频表现不一致，推荐使用Firefox！');
             }
         });
     });

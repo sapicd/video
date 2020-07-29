@@ -25,7 +25,7 @@ from werkzeug.utils import secure_filename
 from flask import render_template, request, g, current_app, url_for
 from utils.web import apilogin_required, login_required
 from utils.tool import allowed_file, get_current_timestamp, parse_valid_comma,\
-    sha256, rsp, is_all_fail, get_today, generate_random
+    sha256, rsp, is_all_fail, get_today, generate_random, list_equal_split
 
 intpl_nav = 'upvideo/nav.html'
 UPLOAD_FOLDER = "upload"
@@ -56,7 +56,7 @@ def upload():
         return res
     allowed_suffix = partial(
         allowed_file,
-        suffix=("mp4", "ogg", "webm")
+        suffix=("mp4", "ogg", "ogv", "webm", "3gp")
     )
     fp = request.files.get("picbed")
     title = request.form.get("title") or ""
@@ -112,6 +112,7 @@ def upload():
     pipe.sadd(rsp("index", "video", g.userinfo.username), sha)
     pipe.hmset(rsp("video", sha), dict(
         sha=sha,
+        user=g.userinfo.username,
         title=title,
         filename=filename,
         upload_path=upload_path,
@@ -134,11 +135,72 @@ def upload():
 
 
 @apilogin_required
+def remove():
+    res = dict(code=1, msg=None)
+    if not g.signin:
+        res.update(code=403, msg="Anonymous user is not sign in")
+        return res
+    sha = request.form.get("sha")
+    ivs = rsp("index", "video", g.userinfo.username)
+    if not sha or not g.rc.sismember(ivs, sha):
+        res.update(code=404, msg="Not Found")
+        return res
+    info = g.rc.hgetall(rsp("video", sha))
+    if g.userinfo.username == info.get("user"):
+        pipe = g.rc.pipeline()
+        pipe.srem(ivs, sha)
+        pipe.delete(rsp("video", sha))
+        try:
+            pipe.execute()
+        except RedisError:
+            res.update(msg="Program data storage service error")
+        else:
+            res.update(code=0)
+            try:
+                senders = json.loads(info.get("senders"))
+                for i in senders:
+                    current_app.extensions["hookmanager"].proxy(
+                        i["sender"]
+                    ).upimg_delete(
+                        sha=sha,
+                        upload_path=info["upload_path"],
+                        filename=info["filename"],
+                        basedir=(join(
+                            current_app.root_path,
+                            current_app.static_folder,
+                            UPLOAD_FOLDER
+                        ) if i["sender"] == "up2local"
+                            else i.get("basedir")),
+                        save_result=i
+                    )
+            except (ValueError, AttributeError, Exception) as e:
+                print(e)
+    else:
+        res.update(code=403, msg="Forbidden")
+    return res
+
+
+@apilogin_required
 def waterfall():
     res = dict(code=1, msg=None)
     if not g.signin:
         res.update(code=403, msg="Anonymous user is not sign in")
         return res
+    #: 依次根据ctime、filename排序
+    sort = request.args.get("sort") or request.form.get("sort") or "desc"
+    #: 符合人类习惯的page，第一页是1（程序计算需要减1）
+    page = request.args.get("page") or request.form.get("page") or 1
+    #: 返回数据条数
+    limit = request.args.get("limit") or request.form.get("limit") or 10
+    try:
+        page = int(page) - 1
+        limit = int(limit)
+        if page < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        res.update(code=2, msg="Parameter error")
+        return res
+
     vs = g.rc.smembers(rsp("index", "video", g.userinfo.username))
     pipe = g.rc.pipeline()
     for sha in vs:
@@ -148,5 +210,29 @@ def waterfall():
     except RedisError:
         res.update(code=3, msg="Program data storage service error")
     else:
-        res.update(code=0, data=result, count=len(result))
+        data = []
+        if result and isinstance(result, (tuple, list)):
+            for i in result:
+                i.update(
+                    senders=json.loads(i["senders"]),
+                    ctime=int(i["ctime"]),
+                )
+                data.append(i)
+        data = sorted(
+            data,
+            key=lambda k: (k.get('ctime', 0), k.get('filename', '')),
+            reverse=False if sort == "asc" else True
+        )
+        count = len(data)
+        data = list_equal_split(data, limit)
+        pageCount = len(data)
+        if page < pageCount:
+            res.update(
+                code=0,
+                count=count,
+                data=data[page],
+                pageCount=pageCount,
+            )
+        else:
+            res.update(code=3, msg="No data")
     return res
