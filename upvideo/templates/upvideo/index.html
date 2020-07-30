@@ -32,6 +32,16 @@
             picbed = layui.picbed,
             util = layui.util;
 
+        function resize_window() {
+            if(document.createEvent) {
+                var event = document.createEvent("HTMLEvents");
+                event.initEvent("resize", true, true);
+                window.dispatchEvent(event);
+            } else if(document.createEventObject) {
+                window.fireEvent("onresize");
+            }
+        }
+
         function render_upload() {
             upload.render({
                 elem: "#choose",
@@ -121,33 +131,23 @@
             var tr = obj.tr;
             if (layEvent === 'play') {
                 layer.open({
-                    type: 2,
+                    type: 1,
                     title: false,
+                    area: 'auto',
+                    maxWidth: document.documentElement.clientWidth * 0.8,
                     maxmin: true,
                     shade: 0.1,
                     closeBtn: false,
                     shadeClose: true,
                     scrollbar: false,
-                    content: data.src,
+                    resize: false,
+                    content: '<video src="' + data.src + '" autoplay controls style="top:0; left:0; width:100%; height:100%">抱歉，您的浏览器不支持内嵌视频！</video>',
                     success: function (layero, index) {
                         layero[0].querySelector(".layui-layer-setwin .layui-layer-min").remove();
-                        var body = layer.getChildFrame('body', index),
-                            v = body.find('video')[0];
-                        var vWidth = v.videoWidth,
-                            vHieght = v.videoHeight;
-                        if (vWidth > 800) {
-                            vWidth = vWidth / 2;
-                            vHieght = vHieght / 2;
+                        var v = layero[0].querySelector('video');
+                        v.onloadedmetadata = function(e) {
+                            resize_window();
                         }
-                        var Height = document.documentElement.clientHeight;
-                            Width = document.documentElement.clientWidth;
-                        layer.style(index, {
-                            width: vWidth + 'px',
-                            height: vHieght + 'px',
-                            left: (Width - vWidth) / 2 + 'px',
-                            top: (Height - vHieght) / 2 + 'px',
-                            //top: 10
-                        });
                     }
                 });
             } else if (layEvent === 'remove') {

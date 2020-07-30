@@ -9,7 +9,7 @@
     :license: BSD 3-Clause, see LICENSE for more details.
 """
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __author__ = 'staugur <staugur@saintic.com>'
 __hookname__ = 'picbed-video'
 __description__ = '上传视频'
@@ -173,8 +173,8 @@ def remove():
                             else i.get("basedir")),
                         save_result=i
                     )
-            except (ValueError, AttributeError, Exception) as e:
-                print(e)
+            except (ValueError, AttributeError, Exception):
+                pass
     else:
         res.update(code=403, msg="Forbidden")
     return res
