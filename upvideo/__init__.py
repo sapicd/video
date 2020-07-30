@@ -9,7 +9,7 @@
     :license: BSD 3-Clause, see LICENSE for more details.
 """
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 __author__ = 'staugur <staugur@saintic.com>'
 __hookname__ = 'picbed-video'
 __description__ = '上传视频'
@@ -56,7 +56,7 @@ def upload():
         return res
     allowed_suffix = partial(
         allowed_file,
-        suffix=("mp4", "ogg", "ogv", "webm", "3gp")
+        suffix=("mp4", "ogg", "ogv", "webm", "3gp", "mov")
     )
     fp = request.files.get("picbed")
     title = request.form.get("title") or ""
