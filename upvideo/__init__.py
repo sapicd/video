@@ -9,7 +9,7 @@
     :license: BSD 3-Clause, see LICENSE for more details.
 """
 
-__version__ = '0.1.2'
+__version__ = "0.1.3"
 __author__ = 'staugur <staugur@saintic.com>'
 __hookname__ = 'picbed-video'
 __description__ = '上传视频'
@@ -28,7 +28,7 @@ from utils.tool import allowed_file, get_current_timestamp, parse_valid_comma,\
     sha256, rsp, is_all_fail, get_today, generate_random, list_equal_split
 
 intpl_nav = 'upvideo/nav.html'
-UPLOAD_FOLDER = "upload"
+UPLOAD_FOLDER = 'upload'
 
 
 @login_required

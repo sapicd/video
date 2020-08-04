@@ -115,11 +115,6 @@
                     }
                 ]
             ],
-            defaultToolbar: [{
-                title: '提示',
-                layEvent: 'LAYTABLE_TIPS',
-                icon: 'layui-icon-tips',
-            }, 'filter', 'print', 'exports'],
             done: function () {
                 render_upload();
             }
@@ -176,13 +171,6 @@
                         data: {sha: data.sha}
                     });
                 });
-            }
-        });
-
-        table.on('toolbar(waterfall)', function(obj){
-            var layEvent = obj.event;
-            if(layEvent === 'LAYTABLE_TIPS'){
-                layer.msg('各浏览器播放视频表现不一致，推荐使用Firefox！');
             }
         });
     });
