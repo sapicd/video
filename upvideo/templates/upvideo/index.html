@@ -57,7 +57,7 @@
                 auto: false,
                 bindAction: "#upload",
                 field: 'picbed',
-                size: 1024 * 10,
+                size: parseInt("{{ g.site.upload_size or 10 }}") * 1024,
                 multiple: false,
                 drag: true,
                 before: function(obj) {
