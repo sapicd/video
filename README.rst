@@ -4,6 +4,8 @@ picbed-video
 这是基于 `picbed <https://github.com/staugur/picbed>`_
 的一个小的扩展模块，用来上传视频。
 
+**sapic v1.13 正式支持视频上传，此扩展封存！**
+
 安装
 ------
 
